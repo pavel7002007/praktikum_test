@@ -1,7 +1,8 @@
 from flask import Flask, abort, request, jsonify
 import elasticsearch as ES
+import os
 
-from validate import validate_args
+#from validate import validate_args
 
 app = Flask(__name__)
 
@@ -10,12 +11,12 @@ app = Flask(__name__)
 def index():
     return 'worked'
 
-@app.route('/api/movies/')
+@app.route('/api/movies')
 def movie_list():
-    validate = validate_args(request.args)
+    # validate = validate_args(request.args)
 
-    if not validate['success']:
-        return abort(422)
+    # if not validate['success']:
+    #     return abort(422)
 
     defaults = {
         'limit': 50,
@@ -52,7 +53,7 @@ def movie_list():
         ]
     }
 
-    es_client = ES.Elasticsearch([{'host': '192.168.11.128', 'port': 9200}], )
+    es_client = ES.Elasticsearch([{'host': os.getenv('ES_HOST', 'localhost'), 'port': 9200, "scheme": "http"}], basic_auth  =("elastic", "changeme"),)
     search_res = es_client.search(
         body=body,
         index='movies',
@@ -66,7 +67,7 @@ def movie_list():
 
 @app.route('/api/movies/<string:movie_id>')
 def get_movie(movie_id):
-    es_client = ES.Elasticsearch([{'host': '192.168.11.128', 'port': 9200}], )
+    es_client = ES.Elasticsearch([{'host': os.getenv('ES_HOST', 'localhost'), 'port': 9200, "scheme": "http"}], basic_auth  =("elastic", "changeme"),)
 
     if not es_client.ping():
         print('oh(')
@@ -81,4 +82,4 @@ def get_movie(movie_id):
     return abort(404)
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=80)
+    app.run(host='0.0.0.0', port=8000)

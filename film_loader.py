@@ -1,8 +1,9 @@
 import sqlite3
 import json
+import os
 
 from elasticsearch import Elasticsearch
-from elasticsearch.helpers import bulk
+from elasticsearch.helpers import bulk, BulkIndexError
 
 
 def extract():
@@ -71,10 +72,10 @@ def transform(__actors, __writers, __raw_data):
             "_id": movie_id,
             "id": movie_id,
             "imdb_rating": imdb_rating,
-            "genre": genre.split(', '),
+            "genres": genre.split(', '),  # переименовал с genre
             "title": title,
             "description": description,
-            "director": director,
+            "directors_names": [director] if director else None,
             "actors": [
                 {
                     "id": actor[0],
@@ -99,8 +100,8 @@ def transform(__actors, __writers, __raw_data):
         document['actors_names'] = ", ".join([actor["name"] for actor in document['actors'] if actor]) or None
         document['writers_names'] = ", ".join([writer["name"] for writer in document['writers'] if writer]) or None
 
-        import pprint
-        pprint.pprint(document)
+        # import pprint
+        # pprint.pprint(document)
 
         documents_list.append(document)
 
@@ -112,8 +113,17 @@ def load(acts):
     :param acts:
     :return:
     """
-    es = Elasticsearch([{'host': '192.168.1.252', 'port': 9200}])
-    bulk(es, acts)
+    es = Elasticsearch(
+        [{'host': os.getenv('ES_HOST', 'localhost'), 'port': 9200, 'scheme': 'http'}],
+        basic_auth  =("elastic", "changeme"),
+    )
+
+    try:
+    # Ваш bulk-запрос
+        bulk(es, acts)
+    except BulkIndexError as e:
+        for error in e.errors:
+            print(error)  # детали ошибки для каждого документа
 
     return True
 
